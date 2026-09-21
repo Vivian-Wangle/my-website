@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>现场扫码签到 · 多人共享统计</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Roboto,system-ui,sans-serif;}
+  body{background:#eef4fa;min-height:100vh;padding:1.5rem;display:flex;justify-content:center;align-items:flex-start;}
+  .app-container{max-width:1400px;width:100%;display:grid;grid-template-columns:1fr 1.2fr;gap:1.8rem;align-items:start;}
+  .checkin-card{background:#fff;border-radius:32px;padding:2rem 1.8rem;box-shadow:0 25px 40px -16px rgba(0,30,60,.2);border:1px solid #cfdff0;position:sticky;top:1.5rem;}
+  .checkin-card h1{font-size:1.9rem;font-weight:700;color:#0b2a44;margin-bottom:.4rem;display:flex;align-items:center;gap:.5rem;}
+  .checkin-card h1::before{content:"📋";font-size:1.8rem;}
+  .subhead{color:#4c6a88;font-size:.88rem;margin-bottom:1.5rem;padding-bottom:.8rem;border-bottom:1px dashed #b8cde0;display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;}
+  .device-badge{background:#fff2d0;color:#8a6d1f;font-size:.68rem;padding:.15rem .8rem;border-radius:30px;font-weight:600;white-space:nowrap;}
+  .live-badge{background:#d0f0d0;color:#1e6b3b;font-size:.7rem;padding:.15rem .8rem;border-radius:30px;margin-left:auto;font-weight:600;animation:pulse 2s infinite;white-space:nowrap;}
+  @keyframes pulse{0%{opacity:.7}50%{opacity:1}100%{opacity:.7}}
+  .form-group{margin-bottom:1.4rem;position:relative;}
+  label{display:block;font-weight:600;font-size:.9rem;color:#1e3c5c;margin-bottom:.4rem;}
+  .required{color:#c0392b;margin-left:.2rem;}
+  input[type=text]{width:100%;padding:.9rem 1.2rem;font-size:1rem;border:1.5px solid #c2d6e8;border-radius:60px;background:#f9fcff;outline:none;color:#0a1e2f;font-weight:500;transition:border .2s,box-shadow .2s;}
+  input[type=text]:focus{border-color:#1e3c5c;box-shadow:0 0 0 4px rgba(30,60,92,.1);background:#fff;}
+  input[type=text]::placeholder{color:#95adc5;font-weight:400;}
+  .searchable-select{position:relative;width:100%;}
+  .select-display{width:100%;padding:.9rem 1.2rem;font-size:1rem;border:1.5px solid #c2d6e8;border-radius:60px;background:#f9fcff;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:.5rem;transition:border .2s,box-shadow .2s;color:#0a1e2f;font-weight:500;user-select:none;}
+  .select-display:hover{border-color:#92b6d9;}
+  .searchable-select.open .select-display{border-color:#1e3c5c;box-shadow:0 0 0 4px rgba(30,60,92,.1);background:#fff;}
+  .select-display.placeholder{color:#95adc5;font-weight:400;}
+  .select-display::after{content:"▼";font-size:.65rem;color:#1e3c5c;opacity:.6;transition:transform .2s;}
+  .searchable-select.open .select-display::after{transform:rotate(180deg);}
+  .dropdown-panel{display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1.5px solid #1e3c5c;border-radius:20px;box-shadow:0 20px 35px -12px rgba(0,30,60,.3);z-index:100;overflow:hidden;max-height:320px;flex-direction:column;}
+  .searchable-select.open .dropdown-panel{display:flex;}
+  .dropdown-search{padding:.6rem .8rem;border-bottom:1px solid #e2edf7;background:#f9fcff;flex-shrink:0;}
+  .dropdown-search input{width:100%;padding:.6rem 1rem;font-size:.9rem;border:1.5px solid #c2d6e8;border-radius:40px;background:#fff;outline:none;}
+  .dropdown-search input:focus{border-color:#1e3c5c;box-shadow:0 0 0 3px rgba(30,60,92,.08);}
+  .dropdown-list{overflow-y:auto;max-height:230px;padding:.4rem;display:flex;flex-direction:column;gap:.15rem;}
+  .dropdown-item{padding:.6rem 1rem;font-size:.9rem;color:#1e3c5c;border-radius:12px;cursor:pointer;font-weight:500;display:flex;align-items:center;gap:.4rem;}
+  .dropdown-item:hover{background:#e9f2fa;}
+  .dropdown-item.selected{background:#1e3c5c;color:#fff;}
+  .dropdown-item.selected::before{content:"✓";font-size:.8rem;}
+  .dropdown-empty{padding:1.2rem;text-align:center;color:#95adc5;font-size:.85rem;}
+  .btn-checkin{width:100%;background:#1e3c5c;color:#fff;border:none;padding:1rem 1.5rem;font-size:1.1rem;font-weight:700;border-radius:60px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.6rem;box-shadow:0 10px 16px -6px rgba(20,50,80,.3);transition:background .2s,transform .1s;letter-spacing:.5px;margin-top:.5rem;}
+  .btn-checkin:hover{background:#0f2d4a;}
+  .btn-checkin:active{transform:scale(.98);}
+  .btn-checkin:disabled{opacity:.5;cursor:not-allowed;}
+  .message-toast{margin-top:1rem;padding:.8rem 1.2rem;border-radius:50px;font-size:.9rem;font-weight:500;display:none;align-items:center;gap:.5rem;background:#e6f7e6;color:#1e6b3b;border:1px solid #b8e0b8;}
+  .message-toast.error{background:#ffe6e5;color:#b33a2f;border-color:#f5bcb7;}
+  .message-toast.show{display:flex;}
+  .already-signed-hint{background:#fff8e7;border:1px solid #e4c580;border-radius:20px;padding:.8rem 1.2rem;font-size:.85rem;color:#7a5c1e;display:none;align-items:center;gap:.6rem;margin-bottom:1.2rem;line-height:1.5;}
+  .already-signed-hint.show{display:flex;}
+  .already-signed-hint::before{content:"⚠️";font-size:1.2rem;}
+  .stats-panel{background:#fff;border-radius:32px;padding:1.8rem 1.6rem 2rem;box-shadow:0 25px 40px -16px rgba(0,30,60,.15);border:1px solid #cfdff0;max-height:90vh;overflow-y:auto;}
+  .stats-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:.8rem;}
+  .stats-header h2{font-size:1.5rem;font-weight:700;color:#0b2a44;display:flex;align-items:center;gap:.5rem;}
+  .stats-header h2::before{content:"📊";font-size:1.5rem;}
+  .total-badge{background:#1e3c5c;color:#fff;padding:.4rem 1.2rem;border-radius:40px;font-size:.9rem;font-weight:600;white-space:nowrap;}
+  .search-box{margin-bottom:1.5rem;position:relative;}
+  .search-box input{border-radius:60px;padding-left:2.8rem;background:#f5faff;border-color:#c2d6e8;}
+  .search-box::before{content:"🔍";position:absolute;left:1rem;top:50%;transform:translateY(-50%);font-size:1rem;opacity:.6;z-index:2;}
+  .dept-summary-list{display:flex;flex-direction:column;gap:1rem;}
+  .dept-summary-item{background:#f9fcff;border:1px solid #d0e2f0;border-radius:20px;padding:1rem 1.2rem;}
+  .dept-summary-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;flex-wrap:wrap;gap:.5rem;}
+  .dept-name{font-weight:700;font-size:1.05rem;color:#1e3c5c;display:flex;align-items:center;gap:.4rem;}
+  .dept-name::before{content:"🏢";font-size:1rem;opacity:.8;}
+  .dept-count-badge{background:#dae6f2;color:#1e3c5c;padding:.25rem 1rem;border-radius:40px;font-size:.8rem;font-weight:600;white-space:nowrap;}
+  .person-list{display:flex;flex-wrap:wrap;gap:.6rem 1rem;margin-top:.4rem;}
+  .person-entry{background:#fff;border-radius:40px;padding:.25rem 1rem .25rem .9rem;border:1px solid #cbdae9;font-size:.82rem;display:inline-flex;align-items:center;gap:.5rem;flex-wrap:wrap;}
+  .person-entry.self-entry{border-color:#e4c580;background:#fffcf2;}
+  .person-entry .name{font-weight:700;color:#0b2a44;}
+  .person-entry .time{font-size:.7rem;color:#5e7d9c;background:#ecf3fa;padding:.1rem .5rem;border-radius:30px;}
+  .person-entry .time::before{content:"⏱️";font-size:.65rem;margin-right:.2rem;}
+  .empty-state{text-align:center;padding:3rem 1.5rem;color:#7e9ab4;font-size:.95rem;background:#f9fcff;border-radius:24px;border:2px dashed #c2d6e8;}
+  .empty-state::before{content:"📭";font-size:2.5rem;display:block;margin-bottom:.8rem;opacity:.7;}
+  .clear-own-btn{background:none;border:1px solid #e0c9a0;color:#a07d3a;padding:.3rem 1rem;border-radius:40px;font-size:.75rem;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:.3rem;}
+  .clear-own-btn::before{content:"🗑️";font-size:.7rem;}
+  .clear-own-btn:hover{background:#fff6e5;border-color:#c9a23d;color:#7a5c1e;}
+  .loading{text-align:center;padding:2rem;color:#7e9ab4;}
+  .loading::before{content:"⏳";font-size:1.8rem;display:block;margin-bottom:.5rem;}
+  @media(max-width:900px){.app-container{grid-template-columns:1fr;}.checkin-card{position:static;}.stats-panel{max-height:none;}body{padding:1rem;}}
+  @media(max-width:480px){.checkin-card h1{font-size:1.5rem;}.stats-header h2{font-size:1.2rem;}.person-entry{width:100%;justify-content:space-between;}}
+</style>
+</head>
+<body>
+<div class="app-container">
+  <div class="checkin-card">
+    <h1>现场扫码签到</h1>
+    <div class="subhead">
+      <span>填写姓名与单位，自动记录签到时间</span>
+      <span class="device-badge">每台手机限签一次</span>
+      <span class="live-badge">● 实时统计</span>
+    </div>
+    <div class="already-signed-hint" id="alreadySignedHint"></div>
+    <form id="checkinForm" onsubmit="return false;">
+      <div class="form-group">
+        <label>姓名 <span class="required">*</span></label>
+        <input type="text" id="nameInput" placeholder="请输入您的姓名" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label>单位 <span class="required">*</span></label>
+        <div class="searchable-select" id="deptSelectWrapper">
+          <div class="select-display placeholder" id="deptDisplay" tabindex="0">请选择单位</div>
+          <div class="dropdown-panel" id="deptPanel">
+            <div class="dropdown-search"><input type="text" id="deptSearchInput" placeholder="输入关键字搜索单位..." autocomplete="off"></div>
+            <div class="dropdown-list" id="deptList"></div>
+          </div>
+        </div>
+        <input type="hidden" id="deptValue" value="">
+      </div>
+      <button type="submit" class="btn-checkin" id="checkinBtn">确认签到</button>
+      <div class="message-toast" id="messageToast"></div>
+    </form>
+  </div>
+
+  <div class="stats-panel">
+    <div class="stats-header">
+      <h2>签到统计</h2>
+      <div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;">
+        <span class="total-badge" id="totalCount">总计 0 人</span>
+        <button class="clear-own-btn" id="clearOwnBtn" title="仅清空本台设备的签到记录">清除我的签到</button>
+      </div>
+    </div>
+    <div class="search-box"><input type="text" id="searchInput" placeholder="搜索单位..."></div>
+    <div id="statsContent" class="dept-summary-list"><div class="loading">正在加载签到数据...</div></div>
+  </div>
+</div>
+
+<!-- 引入 Supabase JS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function(){
+  // ========== 请替换为您的 Supabase 参数 ==========
+  const SUPABASE_URL = 'https://vognerylnknhndijdpkf.supabase.co/rest/v1/';
+  const SUPABASE_ANON_KEY = 'sb_publishable_UMkV7niNXPn5xnInmujUEw_hMUQeX0Y';
+  // ===============================================
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const DEPARTMENTS = [
+    '长春市社保局','农安县社保局','榆树市社保局','德惠市社保局','公主岭社保局',
+    '吉林市社保局','永吉县社保局','蛟河市社保局','桦甸市社保局','舒兰市社保局','磐石市社保局',
+    '四平市社保局','双辽市社保局','梨树县社保局','伊通县社保局',
+    '辽源市社保局','东丰县社保局','东辽社保局',
+    '通化市社保局','集安市社保局','辉南县社保局','柳河县社保局','通化县社保局',
+    '白山市社保局','临江市社保局','抚松县社保局','靖宇县社保局','长白县社保局',
+    '松原市社保局','扶余市社保局','前郭县社保局','长岭县社保局','乾安县社保局',
+    '白城市社保局','洮南市社保局','大安市社保局','镇赉县社保局','通榆县社保局',
+    '延边州社保局','延吉市社保局','图们市社保局','敦化市社保局','龙井市社保局',
+    '和龙市社保局','汪清县社保局','安图县社保局','珲春市社保局',
+    '长白山社保局','梅河新区社保局'
+  ];
+
+  function getDeviceId(){
+    let id = localStorage.getItem('checkin_device_id');
+    if(!id){id='dev_'+Date.now()+'_'+Math.random().toString(36).substr(2,9);localStorage.setItem('checkin_device_id',id);}
+    return id;
+  }
+  const DEVICE_ID = getDeviceId();
+
+  // DOM
+  const nameInput=document.getElementById('nameInput');
+  const checkinForm=document.getElementById('checkinForm');
+  const checkinBtn=document.getElementById('checkinBtn');
+  const messageToast=document.getElementById('messageToast');
+  const statsContent=document.getElementById('statsContent');
+  const totalCountSpan=document.getElementById('totalCount');
+  const searchInput=document.getElementById('searchInput');
+  const clearOwnBtn=document.getElementById('clearOwnBtn');
+  const alreadySignedHint=document.getElementById('alreadySignedHint');
+  const deptWrapper=document.getElementById('deptSelectWrapper');
+  const deptDisplay=document.getElementById('deptDisplay');
+  const deptPanel=document.getElementById('deptPanel');
+  const deptSearchInput=document.getElementById('deptSearchInput');
+  const deptList=document.getElementById('deptList');
+  let selectedDept='';
+  let allRecords=[];   // 从服务器拉取的全部签到记录
+
+  function escapeHtml(t){const d=document.createElement('div');d.textContent=t;return d.innerHTML;}
+  function formatTime(ts){const d=new Date(ts);const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;}
+  function showMessage(t,err){messageToast.textContent=t;messageToast.className='message-toast show'+(err?' error':'');clearTimeout(window._mt);window._mt=setTimeout(()=>messageToast.classList.remove('show'),3500);}
+
+  // ---------- 单位选择器 ----------
+  function renderDeptList(filter){
+    const kw=(filter||'').trim().toLowerCase();
+    const list=kw?DEPARTMENTS.filter(d=>d.toLowerCase().includes(kw)):DEPARTMENTS;
+    if(!list.length){deptList.innerHTML='<div class="dropdown-empty">未找到匹配的单位</div>';return;}
+    deptList.innerHTML=list.map(d=>`<div class="dropdown-item${d===selectedDept?' selected':''}" data-dept="${escapeHtml(d)}">${escapeHtml(d)}</div>`).join('');
+  }
+  function openPanel(){deptWrapper.classList.add('open');deptSearchInput.value='';renderDeptList('');setTimeout(()=>deptSearchInput.focus(),80);}
+  function closePanel(){deptWrapper.classList.remove('open');deptSearchInput.value='';}
+  function selectDept(d){selectedDept=d;deptDisplay.textContent=d;deptDisplay.classList.remove('placeholder');closePanel();}
+  function resetDept(){selectedDept='';deptDisplay.textContent='请选择单位';deptDisplay.classList.add('placeholder');}
+
+  deptDisplay.addEventListener('click',e=>{e.stopPropagation();deptWrapper.classList.contains('open')?closePanel():openPanel();});
+  deptDisplay.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();deptWrapper.classList.contains('open')?closePanel():openPanel();}else if(e.key==='Escape')closePanel();});
+  deptSearchInput.addEventListener('input',e=>renderDeptList(e.target.value));
+  deptPanel.addEventListener('click',e=>e.stopPropagation());
+  deptList.addEventListener('click',e=>{const it=e.target.closest('.dropdown-item');if(it)selectDept(it.getAttribute('data-dept'));});
+  document.addEventListener('click',()=>{if(deptWrapper.classList.contains('open'))closePanel();});
+  deptSearchInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const f=deptList.querySelector('.dropdown-item');if(f)selectDept(f.getAttribute('data-dept'));}else if(e.key==='Escape')closePanel();});
+
+  // ---------- 本设备是否已签到 ----------
+  function getOwnRecord(){return allRecords.find(r=>r.device_id===DEVICE_ID);}
+  function updateCheckinUI(){
+    const own=getOwnRecord();
+    if(own){
+      alreadySignedHint.innerHTML=`您已使用本台手机完成签到：<strong>${escapeHtml(own.name)}</strong> · ${escapeHtml(own.dept)} · ${formatTime(own.created_at)}<br>如需修改，请先点击右侧「清除我的签到」后重新签到。`;
+      alreadySignedHint.classList.add('show');
+      checkinBtn.disabled=true;nameInput.disabled=true;deptDisplay.style.pointerEvents='none';deptDisplay.style.opacity='.6';
+    }else{
+      alreadySignedHint.classList.remove('show');alreadySignedHint.innerHTML='';
+      checkinBtn.disabled=false;nameInput.disabled=false;deptDisplay.style.pointerEvents='auto';deptDisplay.style.opacity='1';
+    }
+  }
+
+  // ---------- 从服务器拉取全部签到数据 ----------
+  async function fetchAllRecords(){
+    const {data,error}=await sb.from('checkins').select('*').order('created_at',{ascending:true});
+    if(error){console.error('拉取失败',error);showMessage('加载签到数据失败，请检查网络',true);return;}
+    allRecords=data||[];
+    renderStats();
+    updateCheckinUI();
+  }
+
+  // ---------- 渲染统计（全部人） ----------
+  function renderStats(){
+    const kw=searchInput.value.trim().toLowerCase();
+    const grouped={};
+    allRecords.forEach(r=>{if(!grouped[r.dept])grouped[r.dept]=[];grouped[r.dept].push(r);});
+    let depts=Object.keys(grouped).sort();
+    if(kw)depts=depts.filter(d=>d.toLowerCase().includes(kw));
+    totalCountSpan.textContent=`总计 ${allRecords.length} 人`;
+    if(!depts.length){
+      statsContent.innerHTML=`<div class="empty-state">${kw?'没有匹配的单位':'暂无签到数据'}</div>`;
+      return;
+    }
+    let html='';
+    depts.forEach(dept=>{
+      const recs=grouped[dept];
+      const persons=recs.map(r=>{
+        const isSelf=r.device_id===DEVICE_ID;
+        return `<span class="person-entry${isSelf?' self-entry':''}">
+          <span class="name">${escapeHtml(r.name)}${isSelf?' (我)':''}</span>
+          <span class="time">${formatTime(r.created_at)}</span>
+        </span>`;
+      }).join('');
+      html+=`<div class="dept-summary-item">
+        <div class="dept-summary-header">
+          <span class="dept-name">${escapeHtml(dept)}</span>
+          <span class="dept-count-badge">${recs.length} 人签到</span>
+        </div>
+        <div class="person-list">${persons}</div>
+      </div>`;
+    });
+    statsContent.innerHTML=html;
+  }
+
+  // ---------- 签到 ----------
+  async function handleCheckin(){
+    if(getOwnRecord()){showMessage('❌ 本台手机已签到，请勿重复签到！',true);updateCheckinUI();return;}
+    const name=nameInput.value.trim();
+    if(!name){showMessage('请输入姓名',true);nameInput.focus();return;}
+    if(!selectedDept){showMessage('请选择单位',true);deptDisplay.focus();return;}
+
+    // 检查同一姓名+单位是否已存在
+    if(allRecords.some(r=>r.name===name&&r.dept===selectedDept)){
+      showMessage('该姓名在此单位已签到，请勿重复签到',true);return;
+    }
+
+    checkinBtn.disabled=true;
+    const {error}=await sb.from('checkins').insert([{
+      name,dept:selectedDept,device_id:DEVICE_ID
+    }]);
+    checkinBtn.disabled=false;
+
+    if(error){console.error(error);showMessage('签到失败，请重试',true);return;}
+
+    nameInput.value='';resetDept();
+    showMessage(`✅ ${name} 签到成功！`,false);
+    await fetchAllRecords();
+  }
+
+  // ---------- 清除自己的签到 ----------
+  async function clearOwnData(){
+    const own=getOwnRecord();
+    if(!own){showMessage('本台手机暂无签到记录',true);return;}
+    if(!confirm(`确定要清除本台手机的签到记录吗？\n（仅清除您自己的：${own.name} · ${own.dept}）`))return;
+    const {error}=await sb.from('checkins').delete().eq('device_id',DEVICE_ID);
+    if(error){console.error(error);showMessage('清除失败，请重试',true);return;}
+    showMessage('已清除本台手机的签到记录，可重新签到');
+    await fetchAllRecords();
+  }
+
+  // ---------- 初始化 ----------
+  function init(){
+    renderDeptList('');
+    fetchAllRecords();
+    // 每 10 秒自动刷新一次，多人签到实时同步
+    setInterval(fetchAllRecords,10000);
+    checkinForm.addEventListener('submit',e=>{e.preventDefault();handleCheckin();});
+    nameInput.addEventListener('keypress',e=>{if(e.key==='Enter'){e.preventDefault();handleCheckin();}});
+    searchInput.addEventListener('input',renderStats);
+    clearOwnBtn.addEventListener('click',clearOwnData);
+  }
+  init();
+})();
+</script>
+</body>
+</html>
