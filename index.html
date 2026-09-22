@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>现场扫码签到 · 多人共享统计</title>
+<title>现场扫码签到（作者：王蔚）</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Roboto,system-ui,sans-serif;}
   body{background:#eef4fa;min-height:100vh;padding:1.5rem;display:flex;justify-content:center;align-items:flex-start;}
@@ -98,7 +98,7 @@
       <div class="form-group">
         <label>单位 <span class="required">*</span></label>
         <div class="searchable-select" id="deptSelectWrapper">
-          <div class="select-display placeholder" id="deptDisplay" tabindex="0">请选择单位</div>
+          <div class="select-display placeholder" id="deptDisplay" tabindex="0">请选择单位（省局请选择处室）</div>
           <div class="dropdown-panel" id="deptPanel">
             <div class="dropdown-search"><input type="text" id="deptSearchInput" placeholder="输入关键字搜索单位..." autocomplete="off"></div>
             <div class="dropdown-list" id="deptList"></div>
@@ -146,7 +146,30 @@
     '白城市社保局','洮南市社保局','大安市社保局','镇赉县社保局','通榆县社保局',
     '延边州社保局','延吉市社保局','图们市社保局','敦化市社保局','龙井市社保局',
     '和龙市社保局','汪清县社保局','安图县社保局','珲春市社保局',
-    '长白山社保局','梅河新区社保局'
+    '长白山社保局','梅河新区社保局''城乡居民养老保险管理处',
+  '失业保险管理处',
+  '综合管理处',
+  '计划统计精算处',
+  '企业职工养老保险管理处',
+  '巡察工作办公室',
+  '信访办公室',
+  '人事教育处',
+  '机关事业单位养老保险管理处',
+  '省直机关事业单位社会保险经办服务处',
+  '财务管理处',
+  '省直行业单位社会保险经办服务处',
+  '社会保险参保稽核处',
+  '审计内控处',
+  '办公室',
+  '职业年金处',
+  '省直社会保险稽核处',
+  '信息管理处',
+  '工伤保险管理处',
+  '系统建设督察室',
+  '机关党委',
+  '社会保险待遇稽核处',
+  '老干部处',
+  '基金运营处'
   ];
 
   function getDeviceId(){
