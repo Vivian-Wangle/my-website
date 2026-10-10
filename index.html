@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>吉林省社保系统领导干部民主测评</title>
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="https://jsd.onmicrosoft.cn/npm/@supabase/supabase-js@2"></script>
+<script src="https://jsd.onmicrosoft.cn/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f2f5; color: #333; padding-bottom: 100px; }
@@ -84,7 +85,6 @@
   <span class="s" data-step="3">③ 测评</span>
 </div>
 
-<!-- 验证码 -->
 <div id="page-code" class="container">
   <div class="verify-box">
     <h2>请输入验证码</h2>
@@ -94,7 +94,6 @@
   </div>
 </div>
 
-<!-- 选地区+单位 -->
 <div id="page-select" class="container hidden">
   <div class="card">
     <div class="card-title">请选择地区与单位</div>
@@ -106,16 +105,13 @@
   </div>
 </div>
 
-<!-- 测评 -->
 <div id="page-vote" class="container hidden"><div id="cadreList"><div class="loading">加载中...</div></div></div>
 
-<!-- 我的投票 -->
 <div id="page-mine" class="container hidden">
   <div class="summary">您的测评已提交，以下为您的投票记录（不可修改）</div>
   <div id="mineList"></div>
 </div>
 
-<!-- 全部结果 -->
 <div id="page-all" class="container hidden"><div id="allResultBox"></div></div>
 
 <div class="footer-bar hidden" id="footerBar"><button class="btn" id="btnSubmit" disabled>提交测评</button></div>
@@ -136,7 +132,7 @@ const SUPABASE_KEY = 'sb_publishable_UMkV7niNXPn5xnInmujUEw_hMUQeX0Y';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ============================================================
-   名单数据（写死在前端）
+   名单数据
    ============================================================ */
 const DEMO_DATA = {
   codes: ['1', '2', '3', '4'],
@@ -368,7 +364,7 @@ function checkComplete() {
 }
 
 /* ============================================================
-   提交投票到 Supabase
+   提交投票
    ============================================================ */
 document.getElementById('btnSubmit').addEventListener('click', async function () {
   this.disabled = true; this.textContent = '提交中...';
@@ -377,7 +373,6 @@ document.getElementById('btnSubmit').addEventListener('click', async function ()
     cadreId: c.id, name: c.name, position: c.position, score: state.scores[c.id]
   }));
 
-  // 本地用户标识，防止同一浏览器重复提交
   let uid = localStorage.getItem('szcp_uid');
   if (!uid) {
     uid = 'web-' + Math.random().toString(36).slice(2) + Date.now();
@@ -467,10 +462,9 @@ document.getElementById('btnViewAll').addEventListener('click', function () {
   openPwdModal(async function (pwd) {
     if (pwd !== '0623') { toast('密码错误'); return false; }
 
-    // 显示查询提示
     toast('查询中...');
 
-    // 分页拉取全部投票记录（Supabase 默认单次最多 1000 条）
+    // 分页拉取全部投票记录
     let allData = [];
     let from = 0;
     const pageSize = 1000;
@@ -620,24 +614,27 @@ function renderAllResult(regionMap) {
     }).join('');
 
     document.getElementById('allResultBox').innerHTML = `
-  <div style="display:flex; justify-content:space-between; margin-bottom:10px; gap:8px;">
-    <button class="btn btn-sm" id="btnExportExcel" style="background:#1e8e3e; flex:1;">📊 导出全部 Excel</button>
-    <button class="btn btn-sm" id="btnBackFromAll" style="background:#78909c; flex:1;">返 回</button>
-  </div>
-  <div class="region-tabs">${tabsHtml}</div>
-  <div id="resultItems">${groupsHtml}</div>
-`;
+      <div style="display:flex; justify-content:space-between; margin-bottom:10px; gap:8px;">
+        <button class="btn btn-sm" id="btnExportExcel" style="background:#1e8e3e; flex:1;">📊 导出全部 Excel</button>
+        <button class="btn btn-sm" id="btnBackFromAll" style="background:#78909c; flex:1;">返 回</button>
+      </div>
+      <div class="region-tabs">${tabsHtml}</div>
+      <div id="resultItems">${groupsHtml}</div>
+    `;
+
     document.querySelectorAll('.region-tab').forEach(tab => {
       tab.addEventListener('click', function () {
         renderPage(Number(this.dataset.page));
       });
     });
+
+    document.getElementById('btnExportExcel').addEventListener('click', () => {
+      exportAllToExcel(regionMap);
+    });
+
     document.getElementById('btnBackFromAll').addEventListener('click', () => showPage('page-mine'));
   }
-document.getElementById('btnExportExcel').addEventListener('click', () => {
-  exportAllToExcel(regionMap);
-});
-document.getElementById('btnBackFromAll').addEventListener('click', () => showPage('page-mine'));
+
   renderPage(1);
 }
 
@@ -672,7 +669,11 @@ function renderSimpleCard(name, scores, total, isSpecial, position) {
     </div>
   `;
 }
- function exportAllToExcel(regionMap) {
+
+/* ============================================================
+   导出 Excel
+   ============================================================ */
+function exportAllToExcel(regionMap) {
   if (typeof XLSX === 'undefined') {
     toast('Excel 库未加载，请检查网络');
     return;
@@ -688,15 +689,12 @@ function renderSimpleCard(name, scores, total, isSpecial, position) {
 
   Object.entries(regionMap).forEach(([region, unitMap]) => {
     Object.entries(unitMap).forEach(([unit, data]) => {
-      // 领导班子
       const teamTotal = data.team.reduce((a,b) => a+b, 0);
       rows.push(buildRow(region, unit, '整体测评', '领导班子整体评价', '整体测评', data.team, teamTotal));
 
-      // 满意度
       const satTotal = data.sat.reduce((a,b) => a+b, 0);
       rows.push(buildRow(region, unit, '整体测评', '社保工作满意度', '整体测评', data.sat, satTotal));
 
-      // 个人
       Object.values(data.cadres).forEach(c => {
         const total = c.scores.reduce((a,b) => a+b, 0);
         rows.push(buildRow(region, unit, '个人测评', c.name, c.position || '', c.scores, total));
