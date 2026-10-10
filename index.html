@@ -467,27 +467,45 @@ document.getElementById('btnViewAll').addEventListener('click', function () {
   openPwdModal(async function (pwd) {
     if (pwd !== '0623') { toast('密码错误'); return false; }
 
-    wx.showLoading && wx.showLoading({ title: '查询中...' });
+    // 显示查询提示
+    toast('查询中...');
 
-    const { data, error } = await supabaseClient.from('votes').select('*');
+    // 分页拉取全部投票记录（Supabase 默认单次最多 1000 条）
+    let allData = [];
+    let from = 0;
+    const pageSize = 1000;
 
-    wx.hideLoading && wx.hideLoading();
+    while (true) {
+      const { data, error } = await supabaseClient
+        .from('votes')
+        .select('*')
+        .range(from, from + pageSize - 1);
 
-    if (error) {
-      console.error(error);
-      toast('查询失败：' + (error.message || '未知错误'));
+      if (error) {
+        console.error(error);
+        toast('查询失败：' + (error.message || '未知错误'));
+        return false;
+      }
+
+      allData = allData.concat(data);
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
+
+    if (allData.length === 0) {
+      toast('暂无投票数据');
       return false;
     }
 
     // 本地聚合
     const regionMap = {};
-    data.forEach(vote => {
+    allData.forEach(vote => {
       const { region, unit } = vote;
       if (!regionMap[region]) regionMap[region] = {};
       if (!regionMap[region][unit]) {
         regionMap[region][unit] = {
-          team: [0,0,0,0],
-          sat: [0,0,0,0],
+          team: [0, 0, 0, 0],
+          sat: [0, 0, 0, 0],
           cadres: {}
         };
       }
@@ -508,7 +526,7 @@ document.getElementById('btnViewAll').addEventListener('click', function () {
           u.cadres[key] = {
             name: item.name,
             position: item.position,
-            scores: [0,0,0,0]
+            scores: [0, 0, 0, 0]
           };
         }
         u.cadres[key].scores[item.score - 1]++;
