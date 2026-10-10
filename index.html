@@ -620,13 +620,13 @@ function renderAllResult(regionMap) {
     }).join('');
 
     document.getElementById('allResultBox').innerHTML = `
-      <div style="text-align:right; margin-bottom:10px;">
-        <button class="btn btn-sm" id="btnBackFromAll" style="background:#78909c;">返 回</button>
-      </div>
-      <div class="region-tabs">${tabsHtml}</div>
-      <div id="resultItems">${groupsHtml}</div>
-    `;
-
+  <div style="display:flex; justify-content:space-between; margin-bottom:10px; gap:8px;">
+    <button class="btn btn-sm" id="btnExportExcel" style="background:#1e8e3e; flex:1;">📊 导出全部 Excel</button>
+    <button class="btn btn-sm" id="btnBackFromAll" style="background:#78909c; flex:1;">返 回</button>
+  </div>
+  <div class="region-tabs">${tabsHtml}</div>
+  <div id="resultItems">${groupsHtml}</div>
+`;
     document.querySelectorAll('.region-tab').forEach(tab => {
       tab.addEventListener('click', function () {
         renderPage(Number(this.dataset.page));
