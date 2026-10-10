@@ -634,7 +634,10 @@ function renderAllResult(regionMap) {
     });
     document.getElementById('btnBackFromAll').addEventListener('click', () => showPage('page-mine'));
   }
-
+document.getElementById('btnExportExcel').addEventListener('click', () => {
+  exportAllToExcel(regionMap);
+});
+document.getElementById('btnBackFromAll').addEventListener('click', () => showPage('page-mine'));
   renderPage(1);
 }
 
@@ -668,6 +671,62 @@ function renderSimpleCard(name, scores, total, isSpecial, position) {
       </div>
     </div>
   `;
+}
+ function exportAllToExcel(regionMap) {
+  if (typeof XLSX === 'undefined') {
+    toast('Excel 库未加载，请检查网络');
+    return;
+  }
+
+  const headers = [
+    '地区', '单位', '类型', '姓名/项目', '职务',
+    '优秀票数', '良好票数', '一般票数', '较差票数', '总票数',
+    '优秀率', '良好率', '一般率', '较差率'
+  ];
+
+  const rows = [];
+
+  Object.entries(regionMap).forEach(([region, unitMap]) => {
+    Object.entries(unitMap).forEach(([unit, data]) => {
+      // 领导班子
+      const teamTotal = data.team.reduce((a,b) => a+b, 0);
+      rows.push(buildRow(region, unit, '整体测评', '领导班子整体评价', '整体测评', data.team, teamTotal));
+
+      // 满意度
+      const satTotal = data.sat.reduce((a,b) => a+b, 0);
+      rows.push(buildRow(region, unit, '整体测评', '社保工作满意度', '整体测评', data.sat, satTotal));
+
+      // 个人
+      Object.values(data.cadres).forEach(c => {
+        const total = c.scores.reduce((a,b) => a+b, 0);
+        rows.push(buildRow(region, unit, '个人测评', c.name, c.position || '', c.scores, total));
+      });
+    });
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  ws['!cols'] = [
+    { wch: 10 }, { wch: 22 }, { wch: 10 }, { wch: 20 }, { wch: 12 },
+    { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
+    { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '测评结果');
+
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+  XLSX.writeFile(wb, `民主测评结果_${dateStr}.xlsx`);
+  toast('Excel 已开始下载');
+}
+
+function buildRow(region, unit, type, name, position, scores, total) {
+  const rate = n => total === 0 ? '0.0%' : (n / total * 100).toFixed(1) + '%';
+  return [
+    region, unit, type, name, position,
+    scores[0], scores[1], scores[2], scores[3], total,
+    rate(scores[0]), rate(scores[1]), rate(scores[2]), rate(scores[3])
+  ];
 }
 </script>
 </body>
